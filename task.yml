@@ -1,0 +1,63 @@
+---
+
+- hosts: localhost
+  become: true
+  tasks:
+  - name: "saludo"
+    shell: echo hola "{{ item }}"
+    with_items: "{{ dario }}"
+    when: dario is defined
+  - debug:
+        msg: "{{ item }}"
+    with_items: "{{ ruben }}"
+    when: ruben is defined
+
+  - name: Asegurar que haya el grupo ruben
+    group:
+        name: ansible
+        state: present
+
+  - name: Ansible esta en sudoers
+    lineinfile:
+        dest: /etc/sudoers
+        state: present
+        regexp: '^%ansible'
+        line: '%ansible ALL=(ALL) NOPASSWD: ALL'
+        validate: visudo -cf %s
+
+  - name: add user 
+    user:
+        name: "{{item.name}}"
+        state: present
+        group: "{{item.group}}"
+        groups:
+            - docker
+        createhome: yes
+        password: 'PASSWORD'
+        append: yes
+    with_items:
+        - { name: 'ansibleu', groups: 'ansible'}
+    when: ansibleu is defined
+
+  - name: instalar nginx
+    apt : 
+        name:  nginx
+        state: present
+
+  - name: asegurar la ultima version de nginx
+    apt: 
+        name: nginx
+        state: latest
+    notify: 
+    - restart nginx
+
+  - name: asegurar que nginx esta corriendo
+    service:
+        name: nginx
+        state: started
+  
+  handlers:
+    - name: restart nginx
+      service:
+        name: nginx
+        state: restart
